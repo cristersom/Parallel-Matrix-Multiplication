@@ -45,6 +45,5 @@ int main() {
     //     }
     //     printf("\n");
     // }
-//teste
     return 0;
 }
