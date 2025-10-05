@@ -2,12 +2,12 @@
 #include <stdlib.h>
 #include <time.h>
 #include <sys/time.h>
-#include <omp.h> // Biblioteca do OpenMP - ADICIONADA
+#include <omp.h> // Inclui a biblioteca do OpenMP
 
-/**
- * @brief Aloca dinamicamente uma matriz quadrada de inteiros.
- * * @param tamanho A dimensão (linhas e colunas) da matriz.
- * @return int** Ponteiro para a matriz alocada. Retorna NULL em caso de falha.
+/*
+ * Aloca o espaço necessário para uma matriz NxN na memória heap.
+ * Essencial para matrizes grandes que não caberiam na memória de pilha (stack).
+ * Retorna um ponteiro para a matriz alocada.
  */
 int** alocar_matriz(int tamanho) {
     int** matriz = (int**)malloc(tamanho * sizeof(int*));
@@ -19,6 +19,7 @@ int** alocar_matriz(int tamanho) {
         matriz[i] = (int*)malloc(tamanho * sizeof(int));
         if (matriz[i] == NULL) {
             fprintf(stderr, "Erro de alocação de memória para a linha %d.\n", i);
+            // Em caso de falha, libera a memória que já foi alocada.
             for (int j = 0; j < i; j++) {
                 free(matriz[j]);
             }
@@ -29,11 +30,7 @@ int** alocar_matriz(int tamanho) {
     return matriz;
 }
 
-/**
- * @brief Libera a memória de uma matriz alocada dinamicamente.
- * * @param matriz A matriz a ser liberada.
- * @param tamanho A dimensão da matriz.
- */
+// Libera a memória de uma matriz previamente alocada com alocar_matriz.
 void liberar_matriz(int** matriz, int tamanho) {
     for (int i = 0; i < tamanho; i++) {
         free(matriz[i]);
@@ -41,14 +38,10 @@ void liberar_matriz(int** matriz, int tamanho) {
     free(matriz);
 }
 
-/**
- * @brief Preenche duas matrizes com valores aleatórios (0 ou 1).
- * * @param matriz1 Primeira matriz.
- * @param matriz2 Segunda matriz.
- * @param tamanho Dimensão das matrizes.
- */
+// Preenche duas matrizes com valores aleatórios simples (0 ou 1).
 void gerar_matrizes(int** matriz1, int** matriz2, int tamanho) {
     printf("Etapa: Gerando matrizes com valores aleatórios...\n");
+    // Usar o tempo atual como semente garante números diferentes a cada execução.
     srand(time(NULL));
     for (int linha = 0; linha < tamanho; linha++) {
         for (int coluna = 0; coluna < tamanho; coluna++) {
@@ -59,17 +52,11 @@ void gerar_matrizes(int** matriz1, int** matriz2, int tamanho) {
     printf("Etapa: Matrizes geradas com sucesso!\n");
 }
 
-/**
- * @brief Realiza a multiplicação de duas matrizes (C = A * B) em paralelo com OpenMP.
- * * @param matriz1 Matriz A.
- * @param matriz2 Matriz B.
- * @param resultado Matriz C (resultado).
- * @param tamanho Dimensão das matrizes.
- */
+// Versão paralela do algoritmo de multiplicação usando OpenMP.
 void multiplicar_matrizes(int** matriz1, int** matriz2, int** resultado, int tamanho) {
-    // Diretiva OpenMP para paralelizar o laço for mais externo.
-    // O trabalho de calcular as linhas da matriz resultado será dividido
-    // entre as threads disponíveis.
+    // A diretiva 'pragma' a seguir é a chave da paralelização com OpenMP.
+    // Ela instrui o compilador a dividir as iterações do primeiro laço (linhas)
+    // entre as threads disponíveis, acelerando o processo.
     #pragma omp parallel for
     for (int linha = 0; linha < tamanho; linha++) {
         for (int coluna = 0; coluna < tamanho; coluna++) {
@@ -123,7 +110,7 @@ int main(int argc, char* argv[]) {
 
     printf("\n---------- RESULTADO FINAL ----------\n");
     printf("Dimensões da Matriz: %dx%d\n", TAMANHO, TAMANHO);
-    // omp_get_max_threads() é uma função do OpenMP que retorna o número de threads usadas.
+    // omp_get_max_threads() é uma função do OpenMP que informa quantas threads foram usadas.
     printf("Número de threads utilizadas: %d\n", omp_get_max_threads());
     printf("Tempo de execução da multiplicação: %.6f segundos\n", tempo_execucao);
     printf("-------------------------------------\n");

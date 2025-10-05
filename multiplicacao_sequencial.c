@@ -1,12 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h> // Para a semente do rand()
-#include <sys/time.h> // Para medição de tempo precisa (gettimeofday)
+#include <time.h>
+#include <sys/time.h>
 
-/**
- * @brief Aloca dinamicamente uma matriz quadrada de inteiros.
- * * @param tamanho A dimensão (linhas e colunas) da matriz.
- * @return int** Ponteiro para a matriz alocada. Retorna NULL em caso de falha.
+/*
+ * Aloca o espaço necessário para uma matriz NxN na memória heap.
+ * Essencial para matrizes grandes que não caberiam na memória de pilha (stack).
+ * Retorna um ponteiro para a matriz alocada.
  */
 int** alocar_matriz(int tamanho) {
     int** matriz = (int**)malloc(tamanho * sizeof(int*));
@@ -18,7 +18,7 @@ int** alocar_matriz(int tamanho) {
         matriz[i] = (int*)malloc(tamanho * sizeof(int));
         if (matriz[i] == NULL) {
             fprintf(stderr, "Erro de alocação de memória para a linha %d.\n", i);
-            // Libera o que já foi alocado antes de sair
+            // Em caso de falha, libera a memória que já foi alocada.
             for (int j = 0; j < i; j++) {
                 free(matriz[j]);
             }
@@ -29,11 +29,7 @@ int** alocar_matriz(int tamanho) {
     return matriz;
 }
 
-/**
- * @brief Libera a memória de uma matriz alocada dinamicamente.
- * * @param matriz A matriz a ser liberada.
- * @param tamanho A dimensão da matriz.
- */
+// Libera a memória de uma matriz previamente alocada com alocar_matriz.
 void liberar_matriz(int** matriz, int tamanho) {
     for (int i = 0; i < tamanho; i++) {
         free(matriz[i]);
@@ -41,15 +37,11 @@ void liberar_matriz(int** matriz, int tamanho) {
     free(matriz);
 }
 
-/**
- * @brief Preenche duas matrizes com valores aleatórios (0 ou 1).
- * * @param matriz1 Primeira matriz.
- * @param matriz2 Segunda matriz.
- * @param tamanho Dimensão das matrizes.
- */
+// Preenche duas matrizes com valores aleatórios simples (0 ou 1).
 void gerar_matrizes(int** matriz1, int** matriz2, int tamanho) {
     printf("Etapa: Gerando matrizes com valores aleatórios...\n");
-    srand(time(NULL)); // Inicializa a semente de números aleatórios
+    // Usar o tempo atual como semente garante números diferentes a cada execução.
+    srand(time(NULL));
     for (int linha = 0; linha < tamanho; linha++) {
         for (int coluna = 0; coluna < tamanho; coluna++) {
             matriz1[linha][coluna] = rand() % 2;
@@ -59,13 +51,7 @@ void gerar_matrizes(int** matriz1, int** matriz2, int tamanho) {
     printf("Etapa: Matrizes geradas com sucesso!\n");
 }
 
-/**
- * @brief Realiza a multiplicação de duas matrizes (C = A * B).
- * * @param matriz1 Matriz A.
- * @param matriz2 Matriz B.
- * @param resultado Matriz C (resultado).
- * @param tamanho Dimensão das matrizes.
- */
+// Implementação do algoritmo clássico de multiplicação de matrizes, com complexidade O(n^3).
 void multiplicar_matrizes(int** matriz1, int** matriz2, int** resultado, int tamanho) {
     for (int linha = 0; linha < tamanho; linha++) {
         for (int coluna = 0; coluna < tamanho; coluna++) {
@@ -79,7 +65,6 @@ void multiplicar_matrizes(int** matriz1, int** matriz2, int** resultado, int tam
 }
 
 int main(int argc, char* argv[]) {
-    // Validação dos argumentos de entrada
     if (argc != 2) {
         fprintf(stderr, "Uso: %s <tamanho_da_matriz>\n", argv[0]);
         return 1;
@@ -93,21 +78,20 @@ int main(int argc, char* argv[]) {
 
     printf("Iniciando multiplicação de matrizes sequencial %dx%d\n", TAMANHO, TAMANHO);
 
-    // Alocação de memória para as matrizes
     printf("Etapa: Alocando memória para as matrizes...\n");
     int** matriz1 = alocar_matriz(TAMANHO);
     int** matriz2 = alocar_matriz(TAMANHO);
     int** resultado = alocar_matriz(TAMANHO);
 
     if (matriz1 == NULL || matriz2 == NULL || resultado == NULL) {
-        return 1; // Erro de alocação já foi impresso na função
+        return 1;
     }
     printf("Etapa: Memória alocada com sucesso!\n");
 
-    // Geração dos valores (fora da medição de tempo)
+    // A geração dos dados fica fora da cronometragem de performance.
     gerar_matrizes(matriz1, matriz2, TAMANHO);
 
-    // --- INÍCIO DA MEDIÇÃO DE TEMPO ---
+    // Medição de tempo usando gettimeofday para maior precisão.
     struct timeval start, end;
     printf("Etapa: Iniciando cálculo da multiplicação (esta parte será cronometrada)...\n");
     gettimeofday(&start, NULL);
@@ -116,20 +100,16 @@ int main(int argc, char* argv[]) {
 
     gettimeofday(&end, NULL);
     printf("Etapa: Cálculo finalizado.\n");
-    // --- FIM DA MEDIÇÃO DE TEMPO ---
 
-    // Cálculo do tempo de execução em segundos
     long seconds = end.tv_sec - start.tv_sec;
     long microseconds = end.tv_usec - start.tv_usec;
     double tempo_execucao = seconds + microseconds * 1e-6;
 
-    // Exibição dos resultados
     printf("\n---------- RESULTADO FINAL ----------\n");
     printf("Dimensões da Matriz: %dx%d\n", TAMANHO, TAMANHO);
     printf("Tempo de execução da multiplicação: %.6f segundos\n", tempo_execucao);
     printf("-------------------------------------\n");
 
-    // Liberação da memória alocada
     printf("Etapa: Liberando memória...\n");
     liberar_matriz(matriz1, TAMANHO);
     liberar_matriz(matriz2, TAMANHO);
