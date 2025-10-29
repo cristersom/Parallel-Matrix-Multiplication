@@ -15,13 +15,14 @@ Os testes abaixo foram executados em uma Máquina Virtual (VirtualBox) com 2 nú
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Sequencial** | 2000x2000 | 84.66 | 82.06 | 87.65 | **84.79** | **1.0x** |
 | **OpenMP** | 2000x2000 | 43.50 | 47.07 | 46.45 | **45.67** | **1.86x** |
-| **MPI (8 nós)** | 2000x2000 | (a executar) | (a executar) | (a executar) | **(a executar)** | **(a executar)** |
+| **MPI (8 nós)** | 2000x2000 | 5.52 | 6.39 | 5.72 | **(a executar)** | **(a executar)** |
 | **Sequencial** | 3000x3000 | 312.92 | 322.81 | 326.09 | **320.61** | **1.0x** |
 | **OpenMP** | 3000x3000 | 169.39 | 174.45 | 175.93 | **173.26** | **1.85x** |
-| **MPI (8 nós)**| 3000x3000 | (a executar) | (a executar) | (a executar) | **(a executar)** | **(a executar)** |
+| **MPI (8 nós)**| 3000x3000 | 24.59 | 22.84 | 23.50 | **(a executar)** | **(a executar)** |
 | **Sequencial** | 4000x4000 | 725.90 | 724.95 | 739.82 | **730.22** | **1.0x** |
 | **OpenMP** | 4000x4000 | 428.86 | 421.90 | 427.34 | **426.03** | **1.71x** |
-| **MPI (8 nós)**| 4000x4000 | (a executar) | (a executar) | (a executar) | **(a executar)** | **(a executar)** |
+| **MPI (8 nós)**| 4000x4000 | 48.91 | 53.51 | 51.18 | **(a executar)** | **(a executar)** |
+
 
 *Speedup = Tempo Médio Sequencial / Tempo Médio Paralelo*
 
