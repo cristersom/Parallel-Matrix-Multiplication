@@ -3,54 +3,27 @@
 #include <mpi.h>
 #include <sys/time.h> 
 
-// Preenche uma matriz com valores aleatórios (0 ou 1) no formato 1D.
+// Preenche uma matriz com valores aleatórios (0 ou 1).
+// A matriz aqui é um vetor 1D para facilitar o envio de dados com MPI.
 void gerar_matriz(int* matriz, int tamanho) {
     for (int i = 0; i < tamanho * tamanho; i++) {
         matriz[i] = rand() % 2;
     }
 }
 
-/*
- * Transpõe uma matriz armazenada em formato 1D (por linha)
- * para otimizar o acesso à memória na multiplicação (cache).
- */
-void transpor_matriz_1d(int* matriz, int tamanho) {
-    // Aloca um buffer para a matriz transposta
-    int* matriz_t = (int*)malloc(tamanho * tamanho * sizeof(int));
-    if (matriz_t == NULL) {
-        fprintf(stderr, "Erro de alocação de memória para a transposição.\n");
-        return;
-    }
-
-    for (int i = 0; i < tamanho; i++) { // Linhas originais
-        for (int j = 0; j < tamanho; j++) { // Colunas originais
-            // A matriz original na posição (i, j) é matriz[i * tamanho + j]
-            // A transposta na posição (j, i) é matriz_t[j * tamanho + i]
-            matriz_t[j * tamanho + i] = matriz[i * tamanho + j];
-        }
-    }
-    
-    // Copia os dados transpostos de volta para o array original (matriz)
-    for (int i = 0; i < tamanho * tamanho; i++) {
-        matriz[i] = matriz_t[i];
-    }
-
-    free(matriz_t);
-}
-
 int main(int argc, char* argv[]) {
     int rank, world_size;
-    int *matriz1 = NULL, *matriz2, *resultado = NULL; 
-    int *chunk_matriz1, *chunk_resultado; 
+    int *matriz1 = NULL, *matriz2, *resultado = NULL; // Matrizes completas (só o mestre usa todas)
+    int *chunk_matriz1, *chunk_resultado; // Pedaços de matriz para cada processo
     int tamanho;
     struct timeval start, end;
 
     MPI_Init(&argc, &argv);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank); 
-    MPI_Comm_size(MPI_COMM_WORLD, &world_size); 
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank); // Pega o ID (rank) do processo atual
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size); // Pega o total de processos
 
     if (argc != 2) {
-        if (rank == 0) { 
+        if (rank == 0) { // Apenas o mestre imprime a mensagem de erro de uso
             fprintf(stderr, "Uso: mpirun -np <num_procs> %s <tamanho_da_matriz>\n", argv[0]);
         }
         MPI_Finalize();
@@ -58,37 +31,26 @@ int main(int argc, char* argv[]) {
     }
 
     tamanho = atoi(argv[1]);
-    if (tamanho % world_size != 0) {
-        if (rank == 0) {
-            fprintf(stderr, "Erro: O tamanho da matriz (%d) deve ser divisível pelo número de processos (%d).\n", tamanho, world_size);
-        }
-        MPI_Finalize();
-        return 1;
-    }
-    
+    // Divide o número de linhas da matriz pelo total de processos.
     int chunk_size = tamanho / world_size;
 
     // Alocação de memória para os blocos de dados de cada processo.
     chunk_matriz1 = (int*)malloc(chunk_size * tamanho * sizeof(int));
     chunk_resultado = (int*)malloc(chunk_size * tamanho * sizeof(int));
-    matriz2 = (int*)malloc(tamanho * tamanho * sizeof(int)); // Todos precisam da matriz2 (transposta) inteira
+    matriz2 = (int*)malloc(tamanho * tamanho * sizeof(int)); // Todos precisam da matriz2 inteira
 
     // O processo mestre (rank 0) é responsável por criar os dados e distribuí-los.
     if (rank == 0) {
-        printf("Iniciando multiplicação de matrizes PARALELA (MPI) OTMIZADA %dx%d com %d processos.\n", tamanho, tamanho, world_size);
+        printf("Iniciando multiplicação de matrizes PARALELA (MPI) %dx%d com %d processos.\n", tamanho, tamanho, world_size);
         
         matriz1 = (int*)malloc(tamanho * tamanho * sizeof(int));
         resultado = (int*)malloc(tamanho * tamanho * sizeof(int));
 
         printf("Etapa: Gerando matrizes...\n");
-        srand(1); // Semente fixa
+        srand(1); // Semente fixa para garantir a consistência dos dados entre testes
         gerar_matriz(matriz1, tamanho);
-        gerar_matriz(matriz2, tamanho); // Gera a matriz B
-
-        // Otimização de cache (fora da cronometragem)
-        printf("Etapa: Transpondo Matriz 2...\n");
-        transpor_matriz_1d(matriz2, tamanho); // Transpõe B -> B_t
-        printf("Etapa: Matriz 2 transposta.\n");
+        gerar_matriz(matriz2, tamanho);
+        printf("Etapa: Matrizes geradas.\n");
 
         printf("Etapa: Iniciando cálculo (distribuindo dados e cronometrando)...\n");
         gettimeofday(&start, NULL);
@@ -96,29 +58,28 @@ int main(int argc, char* argv[]) {
     
     /* --- FASE DE DISTRIBUIÇÃO (COMMUNICATION) --- */
     
-    // 1. Broadcast: O mestre envia a matriz2_t inteira para TODOS (matriz2 agora contém a transposta).
+    // 1. Broadcast: O mestre envia a matriz2 inteira para TODOS os outros processos.
     MPI_Bcast(matriz2, tamanho * tamanho, MPI_INT, 0, MPI_COMM_WORLD);
     
-    // 2. Scatter: O mestre distribui fatias da matriz1.
+    // 2. Scatter: O mestre distribui fatias da matriz1. Cada processo recebe um 'chunk' diferente.
     MPI_Scatter(matriz1, chunk_size * tamanho, MPI_INT, 
                 chunk_matriz1, chunk_size * tamanho, MPI_INT, 0, MPI_COMM_WORLD);
 
     /* --- FASE DE CÁLCULO (COMPUTATION) --- */
-    // A fórmula é C[i][j] = A_chunk[i][k] * B_t[j][k]
+    // Esta parte é executada em paralelo por todos os processos, cada um com seus dados.
     for (int i = 0; i < chunk_size; i++) {
         for (int j = 0; j < tamanho; j++) {
             int soma = 0;
             for (int k = 0; k < tamanho; k++) {
-                // Acesso otimizado: A[i][k] * B_t[j][k]
-                // B_t[j * tamanho + k] é o acesso sequencial à linha 'j' da matriz transposta.
-                soma += chunk_matriz1[i * tamanho + k] * matriz2[j * tamanho + k];
+                // A[i][k] * B[k][j] - usando aritmética de ponteiros para simular o 2D
+                soma += chunk_matriz1[i * tamanho + k] * matriz2[k * tamanho + j];
             }
             chunk_resultado[i * tamanho + j] = soma;
         }
     }
 
     /* --- FASE DE COLETA (COMMUNICATION) --- */
-    // Gather: O mestre recolhe os 'chunks' de resultado.
+    // Gather: O mestre recolhe os 'chunks' de resultado de todos os processos e os junta.
     MPI_Gather(chunk_resultado, chunk_size * tamanho, MPI_INT, 
                resultado, chunk_size * tamanho, MPI_INT, 0, MPI_COMM_WORLD);
 
@@ -137,7 +98,7 @@ int main(int argc, char* argv[]) {
         printf("Tempo de execução da multiplicação: %.6f segundos\n", tempo_execucao);
         printf("-------------------------------------\n");
         
-        // Libera a memória alocada pelo mestre
+        // Libera a memória que foi alocada apenas pelo mestre
         free(matriz1);
         free(resultado);
     }

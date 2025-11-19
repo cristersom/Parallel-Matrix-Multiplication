@@ -2,13 +2,12 @@
 #include <stdlib.h>
 #include <time.h>
 #include <sys/time.h>
-#include <omp.h> // Inclui a biblioteca do OpenMP
 
 /*
- * Funções auxiliares (alocar_matriz, liberar_matriz, gerar_matrizes) omitidas por brevidade,
- * mas são as mesmas da versão sequencial.
+ * Aloca o espaço necessário para uma matriz NxN na memória heap.
+ * Essencial para matrizes grandes que não caberiam na memória de pilha (stack).
+ * Retorna um ponteiro para a matriz alocada.
  */
-
 int** alocar_matriz(int tamanho) {
     int** matriz = (int**)malloc(tamanho * sizeof(int*));
     if (matriz == NULL) {
@@ -19,6 +18,7 @@ int** alocar_matriz(int tamanho) {
         matriz[i] = (int*)malloc(tamanho * sizeof(int));
         if (matriz[i] == NULL) {
             fprintf(stderr, "Erro de alocação de memória para a linha %d.\n", i);
+            // Em caso de falha, libera a memória que já foi alocada.
             for (int j = 0; j < i; j++) {
                 free(matriz[j]);
             }
@@ -29,6 +29,7 @@ int** alocar_matriz(int tamanho) {
     return matriz;
 }
 
+// Libera a memória de uma matriz previamente alocada com alocar_matriz.
 void liberar_matriz(int** matriz, int tamanho) {
     for (int i = 0; i < tamanho; i++) {
         free(matriz[i]);
@@ -36,8 +37,10 @@ void liberar_matriz(int** matriz, int tamanho) {
     free(matriz);
 }
 
+// Preenche duas matrizes com valores aleatórios simples (0 ou 1).
 void gerar_matrizes(int** matriz1, int** matriz2, int tamanho) {
     printf("Etapa: Gerando matrizes com valores aleatórios...\n");
+    // Usar o tempo atual como semente garante números diferentes a cada execução.
     srand(time(NULL));
     for (int linha = 0; linha < tamanho; linha++) {
         for (int coluna = 0; coluna < tamanho; coluna++) {
@@ -48,30 +51,13 @@ void gerar_matrizes(int** matriz1, int** matriz2, int tamanho) {
     printf("Etapa: Matrizes geradas com sucesso!\n");
 }
 
-int** transpor_matriz(int** matriz, int tamanho) {
-    int** matriz_t = alocar_matriz(tamanho);
-    if (matriz_t == NULL) return NULL;
-
-    for (int i = 0; i < tamanho; i++) {
-        for (int j = 0; j < tamanho; j++) {
-            matriz_t[i][j] = matriz[j][i];
-        }
-    }
-    return matriz_t;
-}
-
-
-// Versão paralela do algoritmo de multiplicação usando OpenMP e Matriz Transposta.
-void multiplicar_matrizes(int** matriz1, int** matriz2_t, int** resultado, int tamanho) {
-    // #pragma omp parallel for é a chave da paralelização.
-    // schedule(static) é geralmente o melhor para loops balanceados como este.
-    #pragma omp parallel for schedule(static)
+// Implementação do algoritmo clássico de multiplicação de matrizes, com complexidade O(n^3).
+void multiplicar_matrizes(int** matriz1, int** matriz2, int** resultado, int tamanho) {
     for (int linha = 0; linha < tamanho; linha++) {
         for (int coluna = 0; coluna < tamanho; coluna++) {
             int soma = 0;
             for (int k = 0; k < tamanho; k++) {
-                // Acesso otimizado: A[linha][k] * B_t[coluna][k]
-                soma += matriz1[linha][k] * matriz2_t[coluna][k];
+                soma += matriz1[linha][k] * matriz2[k][coluna];
             }
             resultado[linha][coluna] = soma;
         }
@@ -90,41 +76,27 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    printf("Iniciando multiplicação de matrizes PARALELA (OpenMP) OTMIZADA %dx%d\n", TAMANHO, TAMANHO);
+    printf("Iniciando multiplicação de matrizes sequencial %dx%d\n", TAMANHO, TAMANHO);
 
     printf("Etapa: Alocando memória para as matrizes...\n");
     int** matriz1 = alocar_matriz(TAMANHO);
     int** matriz2 = alocar_matriz(TAMANHO);
     int** resultado = alocar_matriz(TAMANHO);
-    int** matriz2_t = NULL; // Matriz transposta
 
     if (matriz1 == NULL || matriz2 == NULL || resultado == NULL) {
-        if (matriz1) liberar_matriz(matriz1, TAMANHO);
-        if (matriz2) liberar_matriz(matriz2, TAMANHO);
-        if (resultado) liberar_matriz(resultado, TAMANHO);
         return 1;
     }
     printf("Etapa: Memória alocada com sucesso!\n");
 
+    // A geração dos dados fica fora da cronometragem de performance.
     gerar_matrizes(matriz1, matriz2, TAMANHO);
 
-    // Otimização de cache (fora da cronometragem)
-    printf("Etapa: Transpondo Matriz 2 para otimização de cache...\n");
-    matriz2_t = transpor_matriz(matriz2, TAMANHO);
-    if (matriz2_t == NULL) {
-        liberar_matriz(matriz1, TAMANHO);
-        liberar_matriz(matriz2, TAMANHO);
-        liberar_matriz(resultado, TAMANHO);
-        return 1;
-    }
-    printf("Etapa: Matriz 2 transposta com sucesso!\n");
-
-
+    // Medição de tempo usando gettimeofday para maior precisão.
     struct timeval start, end;
     printf("Etapa: Iniciando cálculo da multiplicação (esta parte será cronometrada)...\n");
     gettimeofday(&start, NULL);
 
-    multiplicar_matrizes(matriz1, matriz2_t, resultado, TAMANHO);
+    multiplicar_matrizes(matriz1, matriz2, resultado, TAMANHO);
 
     gettimeofday(&end, NULL);
     printf("Etapa: Cálculo finalizado.\n");
@@ -135,14 +107,12 @@ int main(int argc, char* argv[]) {
 
     printf("\n---------- RESULTADO FINAL ----------\n");
     printf("Dimensões da Matriz: %dx%d\n", TAMANHO, TAMANHO);
-    printf("Número de threads utilizadas: %d\n", omp_get_max_threads());
     printf("Tempo de execução da multiplicação: %.6f segundos\n", tempo_execucao);
     printf("-------------------------------------\n");
 
     printf("Etapa: Liberando memória...\n");
     liberar_matriz(matriz1, TAMANHO);
     liberar_matriz(matriz2, TAMANHO);
-    liberar_matriz(matriz2_t, TAMANHO);
     liberar_matriz(resultado, TAMANHO);
     printf("Etapa: Memória liberada. Fim do programa.\n");
 
