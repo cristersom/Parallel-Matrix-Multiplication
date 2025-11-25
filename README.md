@@ -53,7 +53,7 @@ gcc -O3 -fopenmp -march=native -ffast-math -funroll-loops multiplicacao_omp.c -o
 
 # Para a versão MPI
 mpicc multiplicacao_mpi.c -o mpi
-gcc -O3 -march=native -ffast-math -funroll-loops multiplicacao_sequencial.c -o sequencial
+mpicc -O3 -march=native -ffast-math -funroll-loops multiplicacao_mpi.c -o mpi
 ```
 
 ### Execução
