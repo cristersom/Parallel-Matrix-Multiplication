@@ -74,6 +74,8 @@ export OMP_NUM_THREADS=<numero_de_threads>
 export OMP_NUM_THREADS=8
 ./omp 3000
 ```
+export OMP_NUM_THREADS=4
+./omp 2000
 
 #### Versão MPI (Teste Local)
 Você pode testar a lógica do MPI em sua própria máquina, simulando múltiplos processos.
@@ -82,6 +84,7 @@ mpirun -np <numero_de_processos> ./mpi <tamanho_da_matriz>
 # Exemplo com 2 processos:
 mpirun -np 2 ./mpi 2000
 ```
+mpirun -np 4 ./mpi 2000
 
 ## Instruções para o Teste de Desempenho em Cluster (MPI)
 
