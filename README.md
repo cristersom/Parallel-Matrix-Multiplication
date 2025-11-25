@@ -45,6 +45,7 @@ Após clonar o repositório, compile cada versão do programa com os seguintes c
 ```bash
 # Para a versão Sequencial
 gcc multiplicacao_sequencial.c -o sequencial
+gcc -O3 -march=native -ffast-math -funroll-loops multiplicacao_sequencial.c -o sequencial
 
 # Para a versão OpenMP (note a flag -fopenmp)
 gcc -fopenmp multiplicacao_omp.c -o omp
