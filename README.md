@@ -49,9 +49,11 @@ gcc -O3 -march=native -ffast-math -funroll-loops multiplicacao_sequencial.c -o s
 
 # Para a versão OpenMP (note a flag -fopenmp)
 gcc -fopenmp multiplicacao_omp.c -o omp
+gcc -O3 -fopenmp -march=native -ffast-math -funroll-loops multiplicacao_omp.c -o omp
 
 # Para a versão MPI
 mpicc multiplicacao_mpi.c -o mpi
+gcc -O3 -march=native -ffast-math -funroll-loops multiplicacao_sequencial.c -o sequencial
 ```
 
 ### Execução
