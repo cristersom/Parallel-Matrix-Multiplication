@@ -2,28 +2,29 @@
 
 Este projeto foi desenvolvido para a disciplina de Sistemas Operacionais / Computação Paralela e tem como objetivo explorar a redução do tempo de execução do algoritmo de multiplicação de matrizes de grandes dimensões.
 
-Foram implementadas três versões do algoritmo:
-1.  **Sequencial:** Uma implementação padrão em C, servindo como baseline de performance.
+Foram implementadas três versões do algoritmo com otimizações de memória (vetor linear) e flags de compilação agressivas:
+1.  **Sequencial:** Uma implementação otimizada em C, servindo como baseline de performance.
 2.  **Paralela com OpenMP:** Utiliza o paralelismo de memória compartilhada para acelerar o cálculo em uma única máquina com múltiplos núcleos.
 3.  **Paralela com MPI:** Utiliza o paralelismo de memória distribuída, projetado para executar a tarefa em um cluster de múltiplos computadores.
 
 ## Resultados de Desempenho
 
-Os testes abaixo foram executados em uma Máquina Virtual (VirtualBox) com 2 núcleos de CPU alocados. A versão OpenMP foi configurada para usar 4 threads (com oversubscription). Os resultados da versão MPI referem-se ao teste de desempenho final a ser executado no cluster do laboratório.
+Os testes abaixo foram executados utilizando flags de otimização (`-O3`, `-march=native`). A versão OpenMP foi configurada para usar **4 threads**.
 
 | Abordagem | Tamanho da Matriz | Tempo 1 (s) | Tempo 2 (s) | Tempo 3 (s) | **Média (s)** | **Speedup** |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Sequencial** | 2000x2000 | 2.07 | 1.83 | 1.83 | **** | **** |
-| **OpenMP** | 2000x2000 | 43.50 | 47.07 | 46.45 | **45.67** | **1.86x** |
-| **MPI (8 nós)** | 2000x2000 | 5.52 | 6.39 | 5.72 | **5.88** | **14.42x** |
-| **Sequencial** | 3000x3000 | 6.86 | 6.87 | 6.87 | **** | **** |
-| **OpenMP** | 3000x3000 | 169.39 | 174.45 | 175.93 | **173.26** | **1.85x** |
-| **MPI (8 nós)**| 3000x3000 | 24.59 | 22.84 | 23.50 | **23.64** | **13.56x** |
-| **Sequencial** | 4000x4000 | 16.94 | 17.03 | 16.93 | **** | **** |
-| **OpenMP** | 4000x4000 | 428.86 | 421.90 | 427.34 | **426.03** | **1.71x** |
-| **MPI (8 nós)**| 4000x4000 | 48.91 | 53.51 | 51.18 | **51.20** | **14.26x** |
+| **Sequencial** | 2000x2000 | 2.07 | 1.83 | 1.83 | **1.91** | **1.0x** |
+| **OpenMP** | 2000x2000 | 0.74 | 0.63 | 0.61 | **0.66** | **2.89x** |
+| **MPI (8 nós)** | 2000x2000 | 2.10 | 2.03 | 2.02 | **2.05** | **0.93x** |
+| **Sequencial** | 3000x3000 | 6.86 | 6.87 | 6.87 | **6.87** | **1.0x** |
+| **OpenMP** | 3000x3000 | 2.22 | 2.17 | 2.14 | **2.18** | **3.15x** |
+| **MPI (8 nós)**| 3000x3000 | 4.82 | 4.80 | 4.79 | **4.80** | **1.43x** |
+| **Sequencial** | 4000x4000 | 16.94 | 17.03 | 16.93 | **16.97** | **1.0x** |
+| **OpenMP** | 4000x4000 | 5.17 | 5.33 | 5.17 | **5.22** | **3.25x** |
+| **MPI (8 nós)**| 4000x4000 | 8.95 | 8.83 | 9.01 | **8.93** | **1.90x** |
 
 *Speedup = Tempo Médio Sequencial / Tempo Médio Paralelo*
+*(Nota: O MPI apresenta overhead de rede perceptível em matrizes menores, mas escala melhor conforme o tamanho do problema aumenta)*
 
 ## Como Usar o Projeto
 
@@ -38,76 +39,32 @@ Você pode instalar tudo com um único comando:
 sudo apt update
 sudo apt install build-essential openmpi-bin libopenmpi-dev
 
-### Compilação
-
-Após clonar o repositório, compile cada versão do programa com os seguintes comandos:
-
-```bash
 # Para a versão Sequencial
-gcc multiplicacao_sequencial.c -o sequencial
 gcc -O3 -march=native -ffast-math -funroll-loops multiplicacao_sequencial.c -o sequencial
 
-# Para a versão OpenMP (note a flag -fopenmp)
-gcc -fopenmp multiplicacao_omp.c -o omp
-gcc -O3 -fopenmp -march=native -ffast-math -funroll-loops multiplicacao_omp.c -o omp
+# Para a versão OpenMP
+gcc -fopenmp -O3 -march=native -ffast-math -funroll-loops multiplicacao_omp.c -o omp
 
 # Para a versão MPI
-mpicc multiplicacao_mpi.c -o mpi
 mpicc -O3 -march=native -ffast-math -funroll-loops multiplicacao_mpi.c -o mpi
-```
 
-### Execução
-
-#### Versão Sequencial
-```bash
 ./sequencial <tamanho_da_matriz>
 # Exemplo:
 ./sequencial 2000
-```
 
-#### Versão OpenMP
-Antes de executar, defina o número de threads que o OpenMP deve usar.
-```bash
-export OMP_NUM_THREADS=<numero_de_threads>
-./omp <tamanho_da_matriz>
-# Exemplo com 8 threads:
-export OMP_NUM_THREADS=8
-./omp 3000
-```
 export OMP_NUM_THREADS=4
+./omp <tamanho_da_matriz>
+
+# Exemplo:
 ./omp 2000
 
-#### Versão MPI (Teste Local)
-Você pode testar a lógica do MPI em sua própria máquina, simulando múltiplos processos.
-```bash
-mpirun -np <numero_de_processos> ./mpi <tamanho_da_matriz>
-# Exemplo com 2 processos:
-mpirun -np 2 ./mpi 2000
-```
 mpirun -np 4 ./mpi 2000
 
-## Instruções para o Teste de Desempenho em Cluster (MPI)
+mpirun --hostfile hosts.txt -np 16 ./mpi 4000
 
-Este é o teste final para coletar os dados de desempenho da versão MPI e preencher os campos "(a executar)" da tabela de resultados. Ele deve ser realizado em um ambiente com múltiplos computadores em rede (cluster do laboratório).
+# Exemplo de hosts.txt
+192.168.0.10 slots=4
+192.168.0.11 slots=4
+...
 
-### Fase 1: Preparação do Ambiente (Checklist)
-
-1.  **Conectividade:** Garanta que todas as máquinas do cluster estejam na mesma rede e possam se comunicar (verifique com o comando `ping <ip_da_outra_maquina>`).
-2.  **MPI Instalado:** Certifique-se de que o OpenMPI (`openmpi-bin`, `libopenmpi-dev`) está instalado em **todas** as máquinas.
-3.  **Código no Mesmo Caminho:** O executável `mpi` precisa estar no **mesmo caminho absoluto** em todas as máquinas (ex: `/home/aluno/projeto_mpi/mpi`). Use `scp` para copiar a pasta do projeto para as outras máquinas.
-4.  **Acesso SSH sem Senha:** O `mpirun` usa SSH para iniciar processos remotamente. Configure o acesso sem senha do nó mestre para todos os outros nós.
-    * No nó mestre, gere uma chave: `ssh-keygen -t rsa`
-    * Para cada nó trabalhador, copie a chave: `ssh-copy-id usuario@<ip_do_worker>`
-
-### Fase 2: Execução
-
-1.  **Crie o `hostfile`:** No nó mestre, dentro da pasta do projeto, crie um arquivo `hosts.txt` que lista os IPs de todas as máquinas do cluster, um por linha.
-
-2.  **Execute o Teste:** Use o comando `mpirun`, especificando o número de processos e o `hostfile`.
-    ```bash
-    # Sintaxe: mpirun -np <total_de_processos> --hostfile hosts.txt ./mpi <tamanho_da_matriz>
-    
-    # Exemplo para o teste de 8 PCs com matriz 4000x4000
-    mpirun -np 8 --hostfile hosts.txt ./mpi 4000
-    ```
-3.  **Colete os Dados:** Repita a execução 3 vezes para cada dimensão de matriz (2000, 3000, 4000) e anote os tempos para preencher a tabela de resultados.
+mpirun --hostfile hosts.txt -np <total_de_processos> ./mpi <tamanho_matriz>
